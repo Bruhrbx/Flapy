@@ -34,23 +34,13 @@ input,select,button{
  border:none;
 }
 
-button{
- background:#2ecc71;
- color:white;
- cursor:pointer;
-}
+button{background:#2ecc71;color:white;cursor:pointer}
 
-/* MODE + START SEJAJAR */
+/* MODE + START */
 .mode-start{
  display:flex;
  gap:12px;
  align-items:center;
-}
-.mode-start select{
- min-width:130px;
-}
-.mode-start button{
- padding:12px 30px;
 }
 
 /* LEADERBOARD */
@@ -87,7 +77,6 @@ button{
  right:20px;
  font-size:24px;
  background:rgba(0,0,0,.4);
- border:none;
  color:white;
  padding:10px 14px;
  border-radius:12px;
@@ -110,16 +99,19 @@ button{
 #game{position:fixed;inset:0;display:none;overflow:hidden}
 #bird{
  position:absolute;
- width:24px;
- height:24px;
+ width:40px;
+ height:40px;
  left:20%;
  transform-origin:center;
  transition:transform .1s linear;
 }
+
+/* PIPE (FIXED) */
 .pipe{
  position:absolute;
- width:80px;
+ width:70px;                 /* lebih lega di HP */
  background:#2ecc71;
+ transition:left .016s linear; /* smooth */
 }
 .pipe.top{top:0}
 .pipe.bottom{bottom:0}
@@ -141,7 +133,6 @@ button{
 
 <body>
 
-<!-- MENU -->
 <div id="menu">
  <h1>🐦 Flapy Razka</h1>
  <div id="lastScore">Last Score: 0</div>
@@ -209,22 +200,19 @@ const gameover=document.getElementById("gameover");
 const overVideo=document.getElementById("overVideo");
 
 /* GAME VAR */
-let birdY,velocity,gravity,lift,pipeSpeed,spawnChance;
+let birdY,velocity,gravity,lift,pipeSpeed;
 let pipes=[],score=0,running=false,paused=false;
 let playerName="";
+let pipeDistance=0;
 
 /* START */
 startBtn.onclick=()=>{
- if(usernameInput.value.trim()===""){
-  alert("Masukkan username dulu!");
-  return;
- }
+ if(!usernameInput.value.trim()) return alert("Masukkan username!");
  playerName=usernameInput.value.trim();
 
- const m=mode.value;
- if(m==="easy"){gravity=.4;lift=-6;pipeSpeed=2.5;spawnChance=.015}
- if(m==="normal"){gravity=.45;lift=-6.5;pipeSpeed=3;spawnChance=.018}
- if(m==="hard"){gravity=.5;lift=-7;pipeSpeed=3.5;spawnChance=.022}
+ if(mode.value==="easy"){gravity=.4;lift=-6;pipeSpeed=2.5}
+ if(mode.value==="normal"){gravity=.45;lift=-6.5;pipeSpeed=3}
+ if(mode.value==="hard"){gravity=.5;lift=-7;pipeSpeed=3.5}
 
  menu.style.display="none";
  game.style.display="block";
@@ -235,30 +223,37 @@ startBtn.onclick=()=>{
  velocity=0;score=0;
  pipes.forEach(p=>{p.top.remove();p.bottom.remove()});
  pipes=[];
+ pipeDistance=0;
  running=true;paused=false;
  scoreText.innerText=0;
  loop();
 };
 
-/* PIPE */
+/* PIPE – JARAK TERKONTROL */
 function createPipe(){
- const gap=Math.random()*90+230;
- const topH=Math.random()*(innerHeight-gap-120)+60;
+ const gap=240;
+ const minTop=60;
+ const maxTop=innerHeight-gap-100;
+ const topH=Math.random()*(maxTop-minTop)+minTop;
+
  const top=document.createElement("div");
  const bottom=document.createElement("div");
+
  top.className="pipe top";
  bottom.className="pipe bottom";
+
  top.style.height=topH+"px";
  bottom.style.height=(innerHeight-topH-gap)+"px";
  top.style.left=bottom.style.left=innerWidth+"px";
+
  game.append(top,bottom);
  pipes.push({top,bottom,x:innerWidth,passed:false});
 }
 
 /* LOOP */
 function loop(){
- if(!running) return;
- if(paused){requestAnimationFrame(loop);return;}
+ if(!running){return}
+ if(paused){requestAnimationFrame(loop);return}
 
  velocity+=gravity;
  birdY+=velocity;
@@ -266,6 +261,12 @@ function loop(){
  bird.style.transform=`rotate(${Math.max(-25,velocity*8)}deg)`;
 
  if(birdY<0||birdY+24>innerHeight) return gameOver();
+
+ pipeDistance+=pipeSpeed;
+ if(pipeDistance>280){   /* JARAK ANTAR PIPA */
+  createPipe();
+  pipeDistance=0;
+ }
 
  pipes.forEach(p=>{
   p.x-=pipeSpeed;
@@ -278,12 +279,11 @@ function loop(){
   }
 
   const b=bird.getBoundingClientRect();
-  if(b.left<p.x+80&&b.right>p.x&&(b.top<p.top.offsetHeight||b.bottom>innerHeight-p.bottom.offsetHeight))
+  if(b.left<p.x+70&&b.right>p.x&&(b.top<p.top.offsetHeight||b.bottom>innerHeight-p.bottom.offsetHeight))
    gameOver();
  });
 
  pipes=pipes.filter(p=>p.x>-100);
- if(Math.random()<spawnChance) createPipe();
  requestAnimationFrame(loop);
 }
 
@@ -302,8 +302,7 @@ function gameOver(){
 
  db.ref("scores/"+playerName).set({
   username:playerName,
-  score:score,
-  time:Date.now()
+  score, time:Date.now()
  });
 
  game.style.display="none";
