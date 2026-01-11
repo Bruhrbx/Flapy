@@ -2,20 +2,20 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>Flapy Razka</title>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{
- overflow:hidden;
- font-family:Arial;
- background:#3aaeff;
-}
+body{font-family:Arial;background:#3aaeff;color:white;overflow:hidden}
 
-/* ===== MENU ===== */
+/* MENU */
 #menu{
- position:fixed;inset:0;
+ position:fixed; inset:0;
  display:flex;
  flex-direction:column;
  justify-content:center;
@@ -23,66 +23,82 @@ body{
  gap:12px;
  background:#3aaeff;
  z-index:10;
- color:white;
 }
 #menu h1{font-size:48px}
-#lastScore{font-size:20px;opacity:.9}
+#lastScore{font-size:18px;opacity:.9}
 
-#menu select,#menu button{
- font-size:20px;
- padding:12px 30px;
- border-radius:10px;
+input,select,button{
+ font-size:18px;
+ padding:12px 24px;
+ border-radius:12px;
  border:none;
 }
-#menu button{
- background:#2ecc71;
- color:white;
+
+button{background:#2ecc71;color:white}
+
+/* LEADERBOARD */
+#leaderboard{
+ margin-top:10px;
+ background:rgba(0,0,0,.3);
+ padding:14px 22px;
+ border-radius:14px;
+ width:300px;
+}
+#leaderboard h2{text-align:center;margin-bottom:8px}
+#leaderboard li{
+ display:flex;
+ justify-content:space-between;
+ padding:4px 0;
 }
 
-/* ===== SCORE ===== */
+/* SCORE */
 #score{
  position:fixed;
  top:20px;
  left:50%;
  transform:translateX(-50%);
  font-size:36px;
- color:white;
  text-shadow:2px 2px 4px #000;
  display:none;
  z-index:5;
 }
 
-/* ===== PAUSE ===== */
-#pauseText{
+/* PAUSE */
+#pauseBtn{
  position:fixed;
- inset:0;
+ top:20px;
+ right:20px;
+ font-size:24px;
+ background:rgba(0,0,0,.4);
+ border:none;
+ color:white;
+ padding:10px 14px;
+ border-radius:12px;
+ display:none;
+ z-index:6;
+}
+#pauseText{
+ position:fixed; inset:0;
  display:none;
  justify-content:center;
  align-items:center;
- font-size:48px;
- color:white;
- background:rgba(0,0,0,.4);
+ flex-direction:column;
+ gap:20px;
+ font-size:42px;
+ background:rgba(0,0,0,.45);
  z-index:15;
 }
 
-/* ===== GAME ===== */
-#game{
- position:fixed;
- inset:0;
- display:none;
- overflow:hidden;
- background:#3aaeff;
-}
-
+/* GAME */
+#game{position:fixed;inset:0;display:none;overflow:hidden}
 #bird{
  position:absolute;
- width:48px;
- height:48px;
+ width:20px;
+ height:20px;
  left:20%;
  transform-origin:center;
  transition:transform .1s linear;
 }
-
 .pipe{
  position:absolute;
  width:80px;
@@ -91,10 +107,9 @@ body{
 .pipe.top{top:0}
 .pipe.bottom{bottom:0}
 
-/* ===== GAME OVER VIDEO ===== */
+/* GAME OVER */
 #gameover{
- position:fixed;
- inset:0;
+ position:fixed; inset:0;
  display:none;
  background:black;
  z-index:20;
@@ -114,6 +129,8 @@ body{
  <h1>🐦 Flapy Razka</h1>
  <div id="lastScore">Last Score: 0</div>
 
+ <input id="username" placeholder="Masukkan Username">
+
  <select id="mode">
   <option value="easy">Easy</option>
   <option value="normal" selected>Normal</option>
@@ -121,166 +138,179 @@ body{
  </select>
 
  <button id="startBtn">START</button>
+
+ <div id="leaderboard">
+  <h2>🏆 Live Score</h2>
+  <ul id="scoreList"></ul>
+ </div>
 </div>
 
-<!-- SCORE -->
 <div id="score">0</div>
+<button id="pauseBtn">⏸</button>
 
-<!-- PAUSE -->
-<div id="pauseText">⏸ PAUSED</div>
+<div id="pauseText">
+ ⏸ PAUSED
+ <button id="resumeBtn">▶ RESUME</button>
+</div>
 
-<!-- GAME -->
 <div id="game">
  <img id="bird" src="p.png">
 </div>
 
-<!-- GAME OVER VIDEO -->
 <div id="gameover">
  <video id="overVideo" src="over.mp4"></video>
 </div>
 
 <script>
-const menu = document.getElementById("menu");
-const game = document.getElementById("game");
-const bird = document.getElementById("bird");
-const scoreText = document.getElementById("score");
-const startBtn = document.getElementById("startBtn");
-const modeSelect = document.getElementById("mode");
-const lastScoreText = document.getElementById("lastScore");
-const pauseText = document.getElementById("pauseText");
+/* ===== FIREBASE CONFIG ===== */
+firebase.initializeApp({
+ apiKey: "AIzaSyA59R5odWFkcOqnrZTx5MEg44AEyQGfYf0",
+ authDomain: "flapy-7dc9e.firebaseapp.com",
+ databaseURL: "https://flapy-7dc9e-default-rtdb.asia-southeast1.firebasedatabase.app",
+ projectId: "flapy-7dc9e",
+ storageBucket: "flapy-7dc9e.firebasestorage.app",
+ messagingSenderId: "896361737780",
+ appId: "1:896361737780:web:9df3225d6da05aa9afa461"
+});
+const db = firebase.database();
 
-const gameover = document.getElementById("gameover");
-const overVideo = document.getElementById("overVideo");
+/* ELEMENT */
+const menu=document.getElementById("menu");
+const game=document.getElementById("game");
+const bird=document.getElementById("bird");
+const scoreText=document.getElementById("score");
+const pauseBtn=document.getElementById("pauseBtn");
+const pauseText=document.getElementById("pauseText");
+const resumeBtn=document.getElementById("resumeBtn");
+const lastScoreText=document.getElementById("lastScore");
+const scoreList=document.getElementById("scoreList");
+const usernameInput=document.getElementById("username");
 
-let birdY, velocity, gravity, lift, pipeSpeed;
-let pipes = [];
-let score = 0;
-let lastScore = 0;
-let running = false;
-let paused = false;
-let spawnChance = 0.02;
+/* GAME VAR */
+let birdY,velocity,gravity,lift,pipeSpeed,spawnChance;
+let pipes=[],score=0,running=false,paused=false;
+let playerName="";
 
-/* ===== START GAME ===== */
-startBtn.onclick = () => {
- const mode = modeSelect.value;
+/* START */
+startBtn.onclick=()=>{
+ if(usernameInput.value.trim()===""){
+  alert("Masukkan username dulu!");
+  return;
+ }
+ playerName=usernameInput.value.trim();
 
- if(mode==="easy"){ gravity=0.4; lift=-6; pipeSpeed=2.5; spawnChance=0.015; }
- if(mode==="normal"){ gravity=0.45; lift=-6.5; pipeSpeed=3; spawnChance=0.018; }
- if(mode==="hard"){ gravity=0.5; lift=-7; pipeSpeed=3.5; spawnChance=0.022; }
+ const m=mode.value;
+ if(m==="easy"){gravity=.4;lift=-6;pipeSpeed=2.5;spawnChance=.015}
+ if(m==="normal"){gravity=.45;lift=-6.5;pipeSpeed=3;spawnChance=.018}
+ if(m==="hard"){gravity=.5;lift=-7;pipeSpeed=3.5;spawnChance=.022}
 
  menu.style.display="none";
  game.style.display="block";
  scoreText.style.display="block";
- pauseText.style.display="none";
+ pauseBtn.style.display="block";
 
- birdY = innerHeight/2;
- velocity = 0;
- score = 0;
+ birdY=innerHeight/2;
+ velocity=0; score=0;
  pipes.forEach(p=>{p.top.remove();p.bottom.remove()});
  pipes=[];
- running=true;
- paused=false;
+ running=true; paused=false;
  scoreText.innerText=0;
-
  loop();
 };
 
-/* ===== PIPE ===== */
+/* PIPE */
 function createPipe(){
- const gap = Math.random()*90 + 230;
- const topH = Math.random()*(innerHeight-gap-120) + 60;
-
- const top = document.createElement("div");
+ const gap=Math.random()*90+230;
+ const topH=Math.random()*(innerHeight-gap-120)+60;
+ const top=document.createElement("div");
+ const bottom=document.createElement("div");
  top.className="pipe top";
- top.style.height=topH+"px";
- top.style.left=innerWidth+"px";
-
- const bottom = document.createElement("div");
  bottom.className="pipe bottom";
+ top.style.height=topH+"px";
  bottom.style.height=(innerHeight-topH-gap)+"px";
- bottom.style.left=innerWidth+"px";
-
+ top.style.left=bottom.style.left=innerWidth+"px";
  game.append(top,bottom);
  pipes.push({top,bottom,x:innerWidth,passed:false});
 }
 
-/* ===== LOOP ===== */
+/* LOOP */
 function loop(){
  if(!running) return;
- if(paused){ requestAnimationFrame(loop); return; }
+ if(paused){requestAnimationFrame(loop);return;}
 
  velocity+=gravity;
  birdY+=velocity;
  bird.style.top=birdY+"px";
+ bird.style.transform=`rotate(${Math.max(-25,velocity*8)}deg)`;
 
- /* ROTATION */
- let angle = Math.max(-25, Math.min(90, velocity*8));
- bird.style.transform = `rotate(${angle}deg)`;
-
- if(birdY<0 || birdY+48>innerHeight) return gameOver();
+ if(birdY<0||birdY+34>innerHeight) return gameOver();
 
  pipes.forEach(p=>{
   p.x-=pipeSpeed;
-  p.top.style.left=p.x+"px";
-  p.bottom.style.left=p.x+"px";
+  p.top.style.left=p.bottom.style.left=p.x+"px";
 
-  if(!p.passed && p.x < innerWidth*0.2){
+  if(!p.passed && p.x<innerWidth*.2){
    p.passed=true;
    score++;
    scoreText.innerText=score;
   }
 
-  const b = bird.getBoundingClientRect();
-  if(
-   b.left < p.x+80 &&
-   b.right > p.x &&
-   (b.top < p.top.offsetHeight ||
-    b.bottom > innerHeight-p.bottom.offsetHeight)
-  ) gameOver();
+  const b=bird.getBoundingClientRect();
+  if(b.left<p.x+80&&b.right>p.x&&(b.top<p.top.offsetHeight||b.bottom>innerHeight-p.bottom.offsetHeight))
+   gameOver();
  });
 
- pipes = pipes.filter(p=>p.x>-100);
+ pipes=pipes.filter(p=>p.x>-100);
  if(Math.random()<spawnChance) createPipe();
-
  requestAnimationFrame(loop);
 }
 
-/* ===== CONTROL ===== */
-function flap(){
- if(running && !paused) velocity=lift;
-}
-addEventListener("click",flap);
-addEventListener("touchstart",flap,{passive:true});
-addEventListener("keydown",e=>{
- if(e.code==="Space") flap();
- if(e.code==="KeyP" && running){
-  paused=!paused;
-  pauseText.style.display = paused ? "flex" : "none";
- }
-});
+/* CONTROL */
+addEventListener("click",()=>running&&!paused&&(velocity=lift));
+addEventListener("touchstart",()=>running&&!paused&&(velocity=lift),{passive:true});
 
-/* ===== GAME OVER ===== */
+/* PAUSE */
+pauseBtn.onclick=()=>{paused=true;pauseText.style.display="flex"};
+resumeBtn.onclick=()=>{paused=false;pauseText.style.display="none"};
+
+/* GAME OVER */
 function gameOver(){
- if(!running) return;
  running=false;
+ lastScoreText.innerText="Last Score: "+score;
 
- lastScore = score;
- lastScoreText.innerText = "Last Score: " + lastScore;
+ db.ref("scores/"+playerName).set({
+  username:playerName,
+  score:score,
+  time:Date.now()
+ });
 
  game.style.display="none";
  scoreText.style.display="none";
+ pauseBtn.style.display="none";
  pauseText.style.display="none";
-
  gameover.style.display="block";
  overVideo.currentTime=0;
  overVideo.play();
 }
 
-/* ===== VIDEO END ===== */
-overVideo.onended = () => {
+overVideo.onended=()=>{
  gameover.style.display="none";
  menu.style.display="flex";
 };
+
+/* REALTIME LEADERBOARD */
+db.ref("scores")
+ .orderByChild("score")
+ .limitToLast(5)
+ .on("value",snap=>{
+  scoreList.innerHTML="";
+  const arr=[];
+  snap.forEach(s=>arr.push(s.val()));
+  arr.reverse().forEach((d,i)=>{
+   scoreList.innerHTML+=
+    `<li><span>#${i+1} ${d.username}</span><span>${d.score}</span></li>`;
+  });
+ });
 </script>
 
 </body>
