@@ -20,7 +20,7 @@ body{font-family:Arial;background:#3aaeff;color:white;overflow:hidden}
  flex-direction:column;
  justify-content:center;
  align-items:center;
- gap:12px;
+ gap:14px;
  background:#3aaeff;
  z-index:10;
 }
@@ -34,7 +34,24 @@ input,select,button{
  border:none;
 }
 
-button{background:#2ecc71;color:white}
+button{
+ background:#2ecc71;
+ color:white;
+ cursor:pointer;
+}
+
+/* MODE + START SEJAJAR */
+.mode-start{
+ display:flex;
+ gap:12px;
+ align-items:center;
+}
+.mode-start select{
+ min-width:130px;
+}
+.mode-start button{
+ padding:12px 30px;
+}
 
 /* LEADERBOARD */
 #leaderboard{
@@ -93,8 +110,8 @@ button{background:#2ecc71;color:white}
 #game{position:fixed;inset:0;display:none;overflow:hidden}
 #bird{
  position:absolute;
- width:20px;
- height:20px;
+ width:24px;
+ height:24px;
  left:20%;
  transform-origin:center;
  transition:transform .1s linear;
@@ -131,13 +148,14 @@ button{background:#2ecc71;color:white}
 
  <input id="username" placeholder="Masukkan Username">
 
- <select id="mode">
-  <option value="easy">Easy</option>
-  <option value="normal" selected>Normal</option>
-  <option value="hard">Hard</option>
- </select>
-
- <button id="startBtn">START</button>
+ <div class="mode-start">
+  <select id="mode">
+   <option value="easy">Easy</option>
+   <option value="normal" selected>Normal</option>
+   <option value="hard">Hard</option>
+  </select>
+  <button id="startBtn">START</button>
+ </div>
 
  <div id="leaderboard">
   <h2>🏆 Live Score</h2>
@@ -162,17 +180,17 @@ button{background:#2ecc71;color:white}
 </div>
 
 <script>
-/* ===== FIREBASE CONFIG ===== */
+/* FIREBASE */
 firebase.initializeApp({
- apiKey: "AIzaSyA59R5odWFkcOqnrZTx5MEg44AEyQGfYf0",
- authDomain: "flapy-7dc9e.firebaseapp.com",
- databaseURL: "https://flapy-7dc9e-default-rtdb.asia-southeast1.firebasedatabase.app",
- projectId: "flapy-7dc9e",
- storageBucket: "flapy-7dc9e.firebasestorage.app",
- messagingSenderId: "896361737780",
- appId: "1:896361737780:web:9df3225d6da05aa9afa461"
+ apiKey:"AIzaSyA59R5odWFkcOqnrZTx5MEg44AEyQGfYf0",
+ authDomain:"flapy-7dc9e.firebaseapp.com",
+ databaseURL:"https://flapy-7dc9e-default-rtdb.asia-southeast1.firebasedatabase.app",
+ projectId:"flapy-7dc9e",
+ storageBucket:"flapy-7dc9e.firebasestorage.app",
+ messagingSenderId:"896361737780",
+ appId:"1:896361737780:web:9df3225d6da05aa9afa461"
 });
-const db = firebase.database();
+const db=firebase.database();
 
 /* ELEMENT */
 const menu=document.getElementById("menu");
@@ -185,6 +203,10 @@ const resumeBtn=document.getElementById("resumeBtn");
 const lastScoreText=document.getElementById("lastScore");
 const scoreList=document.getElementById("scoreList");
 const usernameInput=document.getElementById("username");
+const startBtn=document.getElementById("startBtn");
+const mode=document.getElementById("mode");
+const gameover=document.getElementById("gameover");
+const overVideo=document.getElementById("overVideo");
 
 /* GAME VAR */
 let birdY,velocity,gravity,lift,pipeSpeed,spawnChance;
@@ -210,10 +232,10 @@ startBtn.onclick=()=>{
  pauseBtn.style.display="block";
 
  birdY=innerHeight/2;
- velocity=0; score=0;
+ velocity=0;score=0;
  pipes.forEach(p=>{p.top.remove();p.bottom.remove()});
  pipes=[];
- running=true; paused=false;
+ running=true;paused=false;
  scoreText.innerText=0;
  loop();
 };
@@ -243,13 +265,13 @@ function loop(){
  bird.style.top=birdY+"px";
  bird.style.transform=`rotate(${Math.max(-25,velocity*8)}deg)`;
 
- if(birdY<0||birdY+34>innerHeight) return gameOver();
+ if(birdY<0||birdY+24>innerHeight) return gameOver();
 
  pipes.forEach(p=>{
   p.x-=pipeSpeed;
   p.top.style.left=p.bottom.style.left=p.x+"px";
 
-  if(!p.passed && p.x<innerWidth*.2){
+  if(!p.passed&&p.x<innerWidth*.2){
    p.passed=true;
    score++;
    scoreText.innerText=score;
@@ -298,19 +320,15 @@ overVideo.onended=()=>{
  menu.style.display="flex";
 };
 
-/* REALTIME LEADERBOARD */
-db.ref("scores")
- .orderByChild("score")
- .limitToLast(5)
- .on("value",snap=>{
-  scoreList.innerHTML="";
-  const arr=[];
-  snap.forEach(s=>arr.push(s.val()));
-  arr.reverse().forEach((d,i)=>{
-   scoreList.innerHTML+=
-    `<li><span>#${i+1} ${d.username}</span><span>${d.score}</span></li>`;
-  });
+/* LEADERBOARD */
+db.ref("scores").orderByChild("score").limitToLast(5).on("value",snap=>{
+ scoreList.innerHTML="";
+ const arr=[];
+ snap.forEach(s=>arr.push(s.val()));
+ arr.reverse().forEach((d,i)=>{
+  scoreList.innerHTML+=`<li><span>#${i+1} ${d.username}</span><span>${d.score}</span></li>`;
  });
+});
 </script>
 
 </body>
