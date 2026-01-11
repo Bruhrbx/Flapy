@@ -20,11 +20,14 @@ body{
  flex-direction:column;
  justify-content:center;
  align-items:center;
- gap:15px;
+ gap:12px;
  background:#3aaeff;
  z-index:10;
+ color:white;
 }
-#menu h1{font-size:48px;color:white}
+#menu h1{font-size:48px}
+#lastScore{font-size:20px;opacity:.9}
+
 #menu select,#menu button{
  font-size:20px;
  padding:12px 30px;
@@ -49,6 +52,19 @@ body{
  z-index:5;
 }
 
+/* ===== PAUSE ===== */
+#pauseText{
+ position:fixed;
+ inset:0;
+ display:none;
+ justify-content:center;
+ align-items:center;
+ font-size:48px;
+ color:white;
+ background:rgba(0,0,0,.4);
+ z-index:15;
+}
+
 /* ===== GAME ===== */
 #game{
  position:fixed;
@@ -63,6 +79,8 @@ body{
  width:48px;
  height:48px;
  left:20%;
+ transform-origin:center;
+ transition:transform .1s linear;
 }
 
 .pipe{
@@ -73,7 +91,7 @@ body{
 .pipe.top{top:0}
 .pipe.bottom{bottom:0}
 
-/* ===== VIDEO GAME OVER ===== */
+/* ===== GAME OVER VIDEO ===== */
 #gameover{
  position:fixed;
  inset:0;
@@ -94,6 +112,7 @@ body{
 <!-- MENU -->
 <div id="menu">
  <h1>🐦 Flapy Razka</h1>
+ <div id="lastScore">Last Score: 0</div>
 
  <select id="mode">
   <option value="easy">Easy</option>
@@ -106,6 +125,9 @@ body{
 
 <!-- SCORE -->
 <div id="score">0</div>
+
+<!-- PAUSE -->
+<div id="pauseText">⏸ PAUSED</div>
 
 <!-- GAME -->
 <div id="game">
@@ -124,6 +146,8 @@ const bird = document.getElementById("bird");
 const scoreText = document.getElementById("score");
 const startBtn = document.getElementById("startBtn");
 const modeSelect = document.getElementById("mode");
+const lastScoreText = document.getElementById("lastScore");
+const pauseText = document.getElementById("pauseText");
 
 const gameover = document.getElementById("gameover");
 const overVideo = document.getElementById("overVideo");
@@ -131,26 +155,23 @@ const overVideo = document.getElementById("overVideo");
 let birdY, velocity, gravity, lift, pipeSpeed;
 let pipes = [];
 let score = 0;
+let lastScore = 0;
 let running = false;
+let paused = false;
 let spawnChance = 0.02;
 
 /* ===== START GAME ===== */
 startBtn.onclick = () => {
  const mode = modeSelect.value;
 
- if(mode==="easy"){
-  gravity=0.4; lift=-6; pipeSpeed=2.5; spawnChance=0.015;
- }
- if(mode==="normal"){
-  gravity=0.45; lift=-6.5; pipeSpeed=3; spawnChance=0.018;
- }
- if(mode==="hard"){
-  gravity=0.5; lift=-7; pipeSpeed=3.5; spawnChance=0.022;
- }
+ if(mode==="easy"){ gravity=0.4; lift=-6; pipeSpeed=2.5; spawnChance=0.015; }
+ if(mode==="normal"){ gravity=0.45; lift=-6.5; pipeSpeed=3; spawnChance=0.018; }
+ if(mode==="hard"){ gravity=0.5; lift=-7; pipeSpeed=3.5; spawnChance=0.022; }
 
  menu.style.display="none";
  game.style.display="block";
  scoreText.style.display="block";
+ pauseText.style.display="none";
 
  birdY = innerHeight/2;
  velocity = 0;
@@ -158,6 +179,7 @@ startBtn.onclick = () => {
  pipes.forEach(p=>{p.top.remove();p.bottom.remove()});
  pipes=[];
  running=true;
+ paused=false;
  scoreText.innerText=0;
 
  loop();
@@ -165,13 +187,8 @@ startBtn.onclick = () => {
 
 /* ===== PIPE ===== */
 function createPipe(){
- const minGap = 230;
- const maxGap = 320;
- const gap = Math.random()*(maxGap-minGap)+minGap;
-
- const minTop = 60;
- const maxTop = innerHeight-gap-120;
- const topH = Math.random()*(maxTop-minTop)+minTop;
+ const gap = Math.random()*90 + 230;
+ const topH = Math.random()*(innerHeight-gap-120) + 60;
 
  const top = document.createElement("div");
  top.className="pipe top";
@@ -190,10 +207,15 @@ function createPipe(){
 /* ===== LOOP ===== */
 function loop(){
  if(!running) return;
+ if(paused){ requestAnimationFrame(loop); return; }
 
  velocity+=gravity;
  birdY+=velocity;
  bird.style.top=birdY+"px";
+
+ /* ROTATION */
+ let angle = Math.max(-25, Math.min(90, velocity*8));
+ bird.style.transform = `rotate(${angle}deg)`;
 
  if(birdY<0 || birdY+48>innerHeight) return gameOver();
 
@@ -218,7 +240,6 @@ function loop(){
  });
 
  pipes = pipes.filter(p=>p.x>-100);
-
  if(Math.random()<spawnChance) createPipe();
 
  requestAnimationFrame(loop);
@@ -226,19 +247,29 @@ function loop(){
 
 /* ===== CONTROL ===== */
 function flap(){
- if(running) velocity=lift;
+ if(running && !paused) velocity=lift;
 }
 addEventListener("click",flap);
 addEventListener("touchstart",flap,{passive:true});
-addEventListener("keydown",e=>e.code==="Space"&&flap());
+addEventListener("keydown",e=>{
+ if(e.code==="Space") flap();
+ if(e.code==="KeyP" && running){
+  paused=!paused;
+  pauseText.style.display = paused ? "flex" : "none";
+ }
+});
 
 /* ===== GAME OVER ===== */
 function gameOver(){
  if(!running) return;
  running=false;
 
+ lastScore = score;
+ lastScoreText.innerText = "Last Score: " + lastScore;
+
  game.style.display="none";
  scoreText.style.display="none";
+ pauseText.style.display="none";
 
  gameover.style.display="block";
  overVideo.currentTime=0;
