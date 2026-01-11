@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Flapy Razka</title>
+<title>Flapy</title>
 
 <!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
@@ -35,6 +35,30 @@ input,select,button{
 }
 
 button{background:#2ecc71;color:white;cursor:pointer}
+
+/* CHARACTER SELECT */
+#charSelect{
+ display:flex;
+ gap:16px;
+}
+.char{
+ border:3px solid transparent;
+ border-radius:14px;
+ padding:8px;
+ background:rgba(255,255,255,.2);
+ cursor:pointer;
+ text-align:center;
+}
+.char img{
+ width:60px;
+ height:60px;
+ display:block;
+ margin:auto;
+}
+.char.active{
+ border-color:#2ecc71;
+ background:rgba(0,0,0,.25);
+}
 
 /* MODE + START */
 .mode-start{
@@ -106,12 +130,12 @@ button{background:#2ecc71;color:white;cursor:pointer}
  transition:transform .1s linear;
 }
 
-/* PIPE (FIXED) */
+/* PIPE */
 .pipe{
  position:absolute;
- width:70px;                 /* lebih lega di HP */
+ width:70px;
  background:#2ecc71;
- transition:left .016s linear; /* smooth */
+ transition:left .016s linear;
 }
 .pipe.top{top:0}
 .pipe.bottom{bottom:0}
@@ -134,10 +158,22 @@ button{background:#2ecc71;color:white;cursor:pointer}
 <body>
 
 <div id="menu">
- <h1>🐦 Flapy Razka</h1>
+ <h1>🐦 Flapy</h1>
  <div id="lastScore">Last Score: 0</div>
 
  <input id="username" placeholder="Masukkan Username">
+
+ <!-- CHARACTER SELECT -->
+ <div id="charSelect">
+  <div class="char active" data-char="1">
+   <img src="p.png">
+   <small>Razka<br>Ringan</small>
+  </div>
+  <div class="char" data-char="2">
+   <img src="pp.png">
+   <small>Qaishar<br>Berat</small>
+  </div>
+ </div>
 
  <div class="mode-start">
   <select id="mode">
@@ -176,10 +212,7 @@ firebase.initializeApp({
  apiKey:"AIzaSyA59R5odWFkcOqnrZTx5MEg44AEyQGfYf0",
  authDomain:"flapy-7dc9e.firebaseapp.com",
  databaseURL:"https://flapy-7dc9e-default-rtdb.asia-southeast1.firebasedatabase.app",
- projectId:"flapy-7dc9e",
- storageBucket:"flapy-7dc9e.firebasestorage.app",
- messagingSenderId:"896361737780",
- appId:"1:896361737780:web:9df3225d6da05aa9afa461"
+ projectId:"flapy-7dc9e"
 });
 const db=firebase.database();
 
@@ -198,21 +231,41 @@ const startBtn=document.getElementById("startBtn");
 const mode=document.getElementById("mode");
 const gameover=document.getElementById("gameover");
 const overVideo=document.getElementById("overVideo");
+const chars=document.querySelectorAll(".char");
 
 /* GAME VAR */
 let birdY,velocity,gravity,lift,pipeSpeed;
 let pipes=[],score=0,running=false,paused=false;
-let playerName="";
+let playerName="",selectedChar=1;
 let pipeDistance=0;
+
+/* CHARACTER SELECT */
+chars.forEach(c=>{
+ c.onclick=()=>{
+  chars.forEach(x=>x.classList.remove("active"));
+  c.classList.add("active");
+  selectedChar=c.dataset.char;
+ };
+});
 
 /* START */
 startBtn.onclick=()=>{
  if(!usernameInput.value.trim()) return alert("Masukkan username!");
  playerName=usernameInput.value.trim();
 
+ /* BASE MODE */
  if(mode.value==="easy"){gravity=.4;lift=-6;pipeSpeed=2.5}
  if(mode.value==="normal"){gravity=.45;lift=-6.5;pipeSpeed=3}
  if(mode.value==="hard"){gravity=.5;lift=-7;pipeSpeed=3.5}
+
+ /* CHARACTER EFFECT */
+ if(selectedChar==2){
+  bird.src="pp.png";
+  gravity+=0.15;   // lebih berat
+  lift+=1;         // loncat lebih lemah
+ }else{
+  bird.src="p.png";
+ }
 
  menu.style.display="none";
  game.style.display="block";
@@ -220,16 +273,18 @@ startBtn.onclick=()=>{
  pauseBtn.style.display="block";
 
  birdY=innerHeight/2;
- velocity=0;score=0;
+ velocity=0;
+ score=0;
  pipes.forEach(p=>{p.top.remove();p.bottom.remove()});
  pipes=[];
  pipeDistance=0;
- running=true;paused=false;
+ running=true;
+ paused=false;
  scoreText.innerText=0;
  loop();
 };
 
-/* PIPE – JARAK TERKONTROL */
+/* PIPE */
 function createPipe(){
  const gap=240;
  const minTop=60;
@@ -238,10 +293,8 @@ function createPipe(){
 
  const top=document.createElement("div");
  const bottom=document.createElement("div");
-
  top.className="pipe top";
  bottom.className="pipe bottom";
-
  top.style.height=topH+"px";
  bottom.style.height=(innerHeight-topH-gap)+"px";
  top.style.left=bottom.style.left=innerWidth+"px";
@@ -252,7 +305,7 @@ function createPipe(){
 
 /* LOOP */
 function loop(){
- if(!running){return}
+ if(!running)return;
  if(paused){requestAnimationFrame(loop);return}
 
  velocity+=gravity;
@@ -260,13 +313,10 @@ function loop(){
  bird.style.top=birdY+"px";
  bird.style.transform=`rotate(${Math.max(-25,velocity*8)}deg)`;
 
- if(birdY<0||birdY+24>innerHeight) return gameOver();
+ if(birdY<0||birdY+40>innerHeight) return gameOver();
 
  pipeDistance+=pipeSpeed;
- if(pipeDistance>280){   /* JARAK ANTAR PIPA */
-  createPipe();
-  pipeDistance=0;
- }
+ if(pipeDistance>280){createPipe();pipeDistance=0}
 
  pipes.forEach(p=>{
   p.x-=pipeSpeed;
@@ -302,7 +352,8 @@ function gameOver(){
 
  db.ref("scores/"+playerName).set({
   username:playerName,
-  score, time:Date.now()
+  score,
+  time:Date.now()
  });
 
  game.style.display="none";
@@ -329,6 +380,5 @@ db.ref("scores").orderByChild("score").limitToLast(5).on("value",snap=>{
  });
 });
 </script>
-
 </body>
 </html>
